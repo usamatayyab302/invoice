@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MedBill Pro — Invoice Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root {
+  --navy: #0d1b2a;
+  --navy2: #1b2d3e;
+  --blue: #1565c0;
+  --blue-light: #1e88e5;
+  --cyan: #00bcd4;
+  --cyan-light: #80deea;
+  --gold: #f9a825;
+  --gold-light: #fdd835;
+  --border: rgba(0,188,212,0.18);
+  --card-bg: rgba(255,255,255,0.04);
+  --text-dim: #8ba5bb;
+  --radius: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--navy);
+  color: #d0e8f5;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 10% 0%, rgba(21,101,192,0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 100%, rgba(0,188,212,0.14) 0%, transparent 55%);
+}
+header { text-align:center; padding:52px 24px 36px; }
+.hbadge { display:inline-flex;align-items:center;gap:10px;background:rgba(0,188,212,0.1);border:1px solid rgba(0,188,212,0.25);border-radius:100px;padding:7px 20px 7px 12px;margin-bottom:22px; }
+.hbadge-icon { width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0; }
+.hbadge span { font-size:12px;font-weight:600;color:var(--cyan-light);letter-spacing:.07em;text-transform:uppercase; }
+h1 { font-family:'Playfair Display',serif;font-size:clamp(1.9rem,4.5vw,3rem);color:#fff;line-height:1.1; }
+h1 span { color:var(--cyan);font-style:italic; }
+.tagline { margin-top:10px;font-size:14px;color:var(--text-dim);font-weight:300;letter-spacing:.02em; }
+.wrap { max-width:1280px;margin:0 auto;padding:0 24px 80px;display:grid;grid-template-columns:500px 1fr;gap:28px;align-items:start; }
+@media(max-width:980px){.wrap{grid-template-columns:1fr;}}
+.card { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(10px);margin-bottom:18px; }
+.card-head { display:flex;align-items:center;gap:10px;padding:16px 22px;background:rgba(255,255,255,0.035);border-bottom:1px solid var(--border); }
+.card-head-icon { font-size:16px; }
+.card-head-title { font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan-light); }
+.card-body { padding:22px; }
+.g2 { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+.s2 { grid-column:span 2; }
+@media(max-width:500px){.g2{grid-template-columns:1fr;}.s2{grid-column:span 1;}}
+.field { display:flex;flex-direction:column;gap:6px; }
+label { font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase; }
+input,select,textarea { background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#e2f2fb;font-family:'Inter',sans-serif;font-size:13.5px;padding:10px 13px;transition:all .2s;outline:none;width:100%; }
+input:focus,select:focus,textarea:focus { border-color:var(--cyan);background:rgba(0,188,212,0.08);box-shadow:0 0 0 3px rgba(0,188,212,0.1); }
+input::placeholder,textarea::placeholder { color:rgba(139,165,187,0.45); }
+select option { background:#1b2d3e; }
+textarea { resize:vertical;min-height:78px; }
+.sep { border:none;border-top:1px solid var(--border);margin:20px 0; }
+.tabs { display:flex;gap:4px;padding:10px 22px;background:rgba(0,0,0,0.15);border-bottom:1px solid var(--border);flex-wrap:wrap; }
+.tab { padding:7px 15px;border-radius:8px;font-size:12px;font-weight:600;letter-spacing:.03em;cursor:pointer;border:1px solid transparent;transition:all .2s;color:var(--text-dim); }
+.tab.on { background:rgba(0,188,212,0.15);border-color:rgba(0,188,212,0.3);color:var(--cyan-light); }
+.tab:hover:not(.on) { background:rgba(255,255,255,0.05);color:#c8e6f5; }
+.tab-panel { display:none; }
+.tab-panel.on { display:block; }
+.srv-head { display:grid;grid-template-columns:3fr 1.2fr 1fr 36px;gap:8px;padding:0 4px 10px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:10px; }
+.srv-row { display:grid;grid-template-columns:3fr 1.2fr 1fr 36px;gap:8px;margin-bottom:8px;align-items:center;animation:fadeUp .25s ease; }
+@keyframes fadeUp{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+.srv-row input { padding:8px 11px;font-size:13px; }
+.btn-del { width:32px;height:32px;border-radius:8px;background:rgba(239,83,80,0.1);border:1px solid rgba(239,83,80,0.25);color:#ef5350;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0; }
+.btn-del:hover { background:rgba(239,83,80,0.2);transform:scale(1.1); }
+.qbtns { display:flex;gap:6px;flex-wrap:wrap;margin-top:6px; }
+.qbtn { padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-dim);transition:all .2s;font-family:'Inter',sans-serif; }
+.qbtn:hover { background:rgba(255,255,255,0.05);color:#c8e6f5;border-color:rgba(0,188,212,0.3); }
+.totals-box { background:rgba(21,101,192,0.1);border:1px solid rgba(21,101,192,0.25);border-radius:12px;padding:18px 20px;margin-top:16px; }
+.t-row { display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13.5px; }
+.t-row .lbl { color:var(--text-dim); }
+.t-row .val { font-weight:600;color:#e2f2fb; }
+.t-row.grand { border-top:1px solid rgba(0,188,212,0.2);margin-top:8px;padding-top:14px; }
+.t-row.grand .lbl { font-size:15px;font-weight:600;color:var(--cyan-light); }
+.t-row.grand .val { font-size:24px;font-weight:700;color:var(--gold); }
+.status-row { display:flex;gap:8px;flex-wrap:wrap; }
+.spill { padding:6px 16px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid;transition:all .2s;letter-spacing:.05em;font-family:'Inter',sans-serif; }
+.spill.paid { border-color:#4caf50;color:#4caf50; }
+.spill.pending { border-color:var(--gold);color:var(--gold); }
+.spill.overdue { border-color:#ef5350;color:#ef5350; }
+.spill.on { color:var(--navy); }
+.spill.paid.on { background:#4caf50; }
+.spill.pending.on { background:var(--gold); }
+.spill.overdue.on { background:#ef5350; }
+.btn { display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s; }
+.btn-ghost { background:transparent;border:1px solid rgba(255,255,255,0.12);color:var(--text-dim); }
+.btn-ghost:hover { background:rgba(255,255,255,0.06);color:#c8e6f5; }
+.btn-teal { background:linear-gradient(135deg,var(--cyan),var(--blue-light));color:#fff;box-shadow:0 3px 14px rgba(0,188,212,0.25); }
+.btn-teal:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,188,212,0.4); }
+.btn-dl { width:100%;justify-content:center;padding:15px 24px;border-radius:12px;background:linear-gradient(135deg,var(--gold) 0%,#fb8c00 100%);color:var(--navy);font-size:15px;font-weight:700;box-shadow:0 4px 18px rgba(249,168,37,0.35);margin-top:14px; }
+.btn-dl:hover { transform:translateY(-2px);box-shadow:0 8px 26px rgba(249,168,37,0.5); }
+.act-row { display:flex;gap:10px;flex-wrap:wrap;margin-top:14px; }
+.preview-side { position:sticky;top:24px; }
+.preview-lbl { font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding:0 4px;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
+.preview-lbl::after { content:'';flex:1;height:1px;background:var(--border); }
+.live-dot { width:8px;height:8px;border-radius:50%;background:#4caf50;box-shadow:0 0 6px #4caf50;animation:pulse 2s infinite; }
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── INVOICE DOC ── */
+#inv-doc { background:#fff;color:#111827;font-family:'Inter',sans-serif;border-radius:10px;padding:44px 44px 36px;position:relative;overflow:hidden;min-height:700px;box-shadow:0 20px 60px rgba(0,0,0,0.45); }
+.inv-top-bar { height:6px;background:linear-gradient(90deg,#1565c0,#00bcd4,#f9a825);position:absolute;top:0;left:0;right:0; }
+.inv-wm { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-family:'Playfair Display',serif;font-size:70px;color:rgba(21,101,192,0.04);white-space:nowrap;pointer-events:none;user-select:none; }
+.d-head { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-top:8px; }
+.d-brand-name { font-family:'Playfair Display',serif;font-size:19px;color:#1565c0;display:flex;align-items:center;gap:8px; }
+.d-brand-icon { width:34px;height:34px;border-radius:7px;background:linear-gradient(135deg,#1565c0,#00bcd4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0; }
+.d-brand-sub { font-size:10px;color:#6b7280;font-family:'Inter',sans-serif;letter-spacing:.07em;text-transform:uppercase;margin-top:3px;margin-left:42px; }
+.d-inv-block { text-align:right; }
+.d-inv-block h2 { font-family:'Playfair Display',serif;font-size:26px;color:#1565c0; }
+.d-inv-num { font-size:12px;color:#6b7280;margin-top:4px; }
+.d-status { display:inline-block;margin-top:8px;padding:4px 14px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase; }
+.d-status.paid { background:#dcfce7;color:#15803d; }
+.d-status.pending { background:#fef9c3;color:#a16207; }
+.d-status.overdue { background:#fee2e2;color:#b91c1c; }
+.d-rule { height:3px;background:linear-gradient(90deg,#1565c0,#00bcd4,#f9a825);border-radius:2px;margin:0 0 26px; }
+.d-parties { display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px; }
+.d-plbl { font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#00bcd4;margin-bottom:8px; }
+.d-pname { font-size:14px;font-weight:700;color:#111827;margin-bottom:4px; }
+.d-pdet { font-size:11px;color:#4b5563;line-height:1.7; }
+.d-meta { display:flex;gap:0;margin-bottom:24px;border:1px solid #e5f0fb;border-radius:10px;overflow:hidden; }
+.d-mi { flex:1;padding:12px 14px;border-right:1px solid #e5f0fb; }
+.d-mi:last-child { border-right:none; }
+.d-mi .mk { font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px; }
+.d-mi .mv { font-size:12px;font-weight:700;color:#111827; }
+.d-table { width:100%;border-collapse:collapse;margin-bottom:18px;font-size:12px; }
+.d-table thead tr { background:#1565c0; }
+.d-table thead th { padding:9px 13px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;text-align:left; }
+.d-table thead th:last-child { text-align:right; }
+.d-table tbody tr { border-bottom:1px solid #f3f4f6; }
+.d-table tbody td { padding:9px 13px;color:#374151;vertical-align:top; }
+.d-table tbody td:last-child { text-align:right;font-weight:700;color:#1565c0; }
+.d-totals { display:flex;justify-content:flex-end;margin-bottom:20px; }
+.d-ti { min-width:240px; }
+.d-tr { display:flex;justify-content:space-between;gap:32px;font-size:12px;padding:5px 0;border-bottom:1px solid #f3f4f6; }
+.d-tr .tk { color:#6b7280; }
+.d-tr .tv { font-weight:600;color:#111827; }
+.d-grand { background:#1565c0;padding:10px 16px;border-radius:8px;margin-top:6px;display:flex;justify-content:space-between;gap:32px; }
+.d-grand .tk { font-size:13px;font-weight:600;color:rgba(255,255,255,.85); }
+.d-grand .tv { font-size:20px;font-weight:700;color:#fdd835; }
+.d-notes { background:#fffbeb;border-left:3px solid #f9a825;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:20px; }
+.d-nlbl { font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#b45309;margin-bottom:5px; }
+.d-notes p { font-size:11px;color:#4b5563;line-height:1.7; }
+.d-footer { border-top:1px solid #e5e7eb;padding-top:14px;display:flex;justify-content:space-between;align-items:center; }
+.d-footer-txt { font-size:10px;color:#9ca3af; }
+.d-footer-brand { font-family:'Playfair Display',serif;font-size:13px;color:#1565c0;opacity:.55; }
+.spec-pill { display:inline-block;background:#e0f2fe;color:#0369a1;font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hbadge">
+    <div class="hbadge-icon">💼</div>
+    <span>Medical Billing Software</span>
+  </div>
+  <h1>Invoice Generator for<br/><span>Billing Companies</span></h1>
+  <p class="tagline">Your billing company invoices doctors &amp; practices — generate &amp; download in seconds</p>
+</header>
+
+<div class="wrap">
+  <!-- ════ LEFT: FORM ════ -->
+  <div>
+    <!-- BILLING COMPANY -->
+    <div class="card">
+      <div class="card-head"><span class="card-head-icon">🏢</span><span class="card-head-title">Your Billing Company (From)</span></div>
+      <div class="card-body">
+        <div class="g2">
+          <div class="field s2"><label>Company Name</label><input id="compName" placeholder="e.g. ProMed Billing Solutions LLC" oninput="render()"/></div>
+          <div class="field"><label>Tax ID / EIN</label><input id="compTax" placeholder="EIN: 12-3456789" oninput="render()"/></div>
+          <div class="field"><label>NPI / License #</label><input id="compNPI" placeholder="NPI-0000000000" oninput="render()"/></div>
+          <div class="field s2"><label>Address</label><input id="compAddr" placeholder="100 Commerce Blvd, Suite 300, Dallas, TX 75201" oninput="render()"/></div>
+          <div class="field"><label>Phone</label><input id="compPhone" placeholder="+1 (555) 000-1234" oninput="render()"/></div>
+          <div class="field"><label>Email</label><input id="compEmail" placeholder="invoices@yourcompany.com" oninput="render()"/></div>
+          <div class="field"><label>Website</label><input id="compWeb" placeholder="www.yourcompany.com" oninput="render()"/></div>
+          <div class="field"><label>Contact Person</label><input id="compContact" placeholder="Jane Smith, Billing Manager" oninput="render()"/></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOCTOR -->
+    <div class="card">
+      <div class="card-head"><span class="card-head-icon">🩺</span><span class="card-head-title">Doctor / Practice (Bill To)</span></div>
+      <div class="card-body">
+        <div class="g2">
+          <div class="field s2"><label>Doctor / Practice Name</label><input id="drName" placeholder="e.g. Dr. James Carter, MD — Carter Family Practice" oninput="render()"/></div>
+          <div class="field"><label>Specialty</label>
+            <select id="drSpec" onchange="render()">
+              <option value="">Select Specialty</option>
+              <option>General Practice / Family Medicine</option>
+              <option>Internal Medicine</option>
+              <option>Cardiology</option>
+              <option>Orthopedics</option>
+              <option>Neurology</option>
+              <option>Pediatrics</option>
+              <option>OB/GYN</option>
+              <option>Psychiatry / Mental Health</option>
+              <option>Radiology</option>
+              <option>Oncology</option>
+              <option>Dermatology</option>
+              <option>Urology</option>
+              <option>Gastroenterology</option>
+              <option>Emergency Medicine</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Doctor NPI Number</label><input id="drNPI" placeholder="NPI-1234567890" oninput="render()"/></div>
+          <div class="field s2"><label>Practice Address</label><input id="drAddr" placeholder="456 Medical Park Dr, Suite 10, Houston, TX 77001" oninput="render()"/></div>
+          <div class="field"><label>Phone</label><input id="drPhone" placeholder="+1 (555) 999-8888" oninput="render()"/></div>
+          <div class="field"><label>Email</label><input id="drEmail" placeholder="dr.carter@practice.com" oninput="render()"/></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="card">
+      <div class="tabs">
+        <div class="tab on" onclick="swTab('services',this)">📋 Billing Services</div>
+        <div class="tab" onclick="swTab('settings',this)">⚙️ Invoice Settings</div>
+        <div class="tab" onclick="swTab('contract',this)">📄 Contract Details</div>
+      </div>
+
+      <!-- SERVICES TAB -->
+      <div class="tab-panel on card-body" id="tab-services">
+        <div class="srv-head"><span>Billing Service / Description</span><span>Rate / Unit</span><span>Amount ($)</span><span></span></div>
+        <div id="srv-list"></div>
+        <button class="btn btn-ghost" style="margin-top:6px;font-size:13px;" onclick="addSrv()">＋ Add Line Item</button>
+        <hr class="sep"/>
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">Quick Add Common Services</div>
+        <div class="qbtns">
+          <button class="qbtn" onclick="quickAdd('Claim Submission & Processing','Per Claim')">Claim Processing</button>
+          <button class="qbtn" onclick="quickAdd('Denial Management & Appeals','Per Denial')">Denial Management</button>
+          <button class="qbtn" onclick="quickAdd('Monthly Account Management Fee','Monthly Flat')">Monthly Fee</button>
+          <button class="qbtn" onclick="quickAdd('Eligibility Verification','Per Verification')">Eligibility Check</button>
+          <button class="qbtn" onclick="quickAdd('Provider Credentialing','Per Provider')">Credentialing</button>
+          <button class="qbtn" onclick="quickAdd('AR Follow-up & Collections','% of Recovered')">AR Follow-up</button>
+          <button class="qbtn" onclick="quickAdd('Payment Posting & Reconciliation','Per Entry')">Payment Posting</button>
+          <button class="qbtn" onclick="quickAdd('Medical Coding (ICD-10/CPT)','Per Encounter')">Medical Coding</button>
+          <button class="qbtn" onclick="quickAdd('Prior Authorization Support','Per Auth')">Prior Auth</button>
+          <button class="qbtn" onclick="quickAdd('Monthly Performance Report','Monthly Flat')">Reporting</button>
+        </div>
+        <hr class="sep"/>
+        <div class="totals-box">
+          <div class="t-row"><span class="lbl">Subtotal</span><span class="val" id="sub-disp">$0.00</span></div>
+          <div class="t-row" style="align-items:center"><span class="lbl">Tax / Surcharge (%)</span><input type="number" id="taxPct" value="0" min="0" max="100" step=".5" style="width:72px;text-align:center;" oninput="render()"/></div>
+          <div class="t-row" style="align-items:center"><span class="lbl">Discount (%)</span><input type="number" id="discPct" value="0" min="0" max="100" step=".5" style="width:72px;text-align:center;" oninput="render()"/></div>
+          <div class="t-row grand"><span class="lbl">Total Due</span><span class="val" id="tot-disp">$0.00</span></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div class="tab-panel card-body" id="tab-settings">
+        <div class="g2">
+          <div class="field"><label>Invoice Number</label><input id="invNum" placeholder="INV-2024-001" oninput="render()"/></div>
+          <div class="field"><label>Invoice Date</label><input type="date" id="invDate" oninput="render()"/></div>
+          <div class="field"><label>Due Date</label><input type="date" id="dueDate" oninput="render()"/></div>
+          <div class="field"><label>Billing Period</label><input id="billPeriod" placeholder="e.g. November 2024" oninput="render()"/></div>
+          <div class="field s2">
+            <label>Payment Status</label>
+            <div class="status-row" style="margin-top:4px">
+              <button class="spill pending on" id="sp-pending" onclick="setStatus('pending')">Pending</button>
+              <button class="spill paid" id="sp-paid" onclick="setStatus('paid')">Paid</button>
+              <button class="spill overdue" id="sp-overdue" onclick="setStatus('overdue')">Overdue</button>
+            </div>
+          </div>
+          <div class="field s2">
+            <label>Payment Terms</label>
+            <select id="payTerms" onchange="render()">
+              <option value="Net 15">Net 15 Days</option>
+              <option value="Net 30" selected>Net 30 Days</option>
+              <option value="Net 45">Net 45 Days</option>
+              <option value="Net 60">Net 60 Days</option>
+              <option value="Due on Receipt">Due on Receipt</option>
+            </select>
+          </div>
+          <div class="field s2"><label>Notes / Payment Instructions</label><textarea id="invNotes" placeholder="Wire transfer or ACH preferred. Include invoice number in payment reference. Questions? Call our billing department." oninput="render()"></textarea></div>
+        </div>
+      </div>
+
+      <!-- CONTRACT TAB -->
+      <div class="tab-panel card-body" id="tab-contract">
+        <div class="g2">
+          <div class="field"><label>Contract / Agreement #</label><input id="contractNum" placeholder="CTR-2024-DC-001" oninput="render()"/></div>
+          <div class="field"><label>Agreement Date</label><input type="date" id="contractDate" oninput="render()"/></div>
+          <div class="field s2"><label>Scope of Services</label><textarea id="scopeText" placeholder="Full-service revenue cycle management including claim submission, denial management, payment posting, and monthly reporting." oninput="render()"></textarea></div>
+          <div class="field"><label>Payer Mix</label><input id="payerMix" placeholder="Medicare, Medicaid, BCBS, Aetna, UHC" oninput="render()"/></div>
+          <div class="field"><label>Total Claims This Period</label><input type="number" id="claimCount" placeholder="e.g. 142" oninput="render()"/></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="act-row">
+      <button class="btn btn-ghost" onclick="clearAll()">🗑 Clear All</button>
+      <button class="btn btn-teal" onclick="loadDemo()">✨ Load Demo</button>
+    </div>
+    <button class="btn btn-dl" onclick="dlPDF()">⬇ Download Invoice as PDF</button>
+  </div>
+
+  <!-- ════ RIGHT: PREVIEW ════ -->
+  <div class="preview-side">
+    <div class="preview-lbl"><div class="live-dot"></div> Live Preview</div>
+    <div id="inv-doc">
+      <div class="inv-top-bar"></div>
+      <div class="inv-wm">INVOICE</div>
+      <div style="position:relative;z-index:1">
+        <div class="d-head">
+          <div>
+            <div class="d-brand-name"><div class="d-brand-icon">💼</div><span id="p-comp-name">Your Billing Company</span></div>
+            <div class="d-brand-sub">MEDICAL BILLING SERVICES</div>
+          </div>
+          <div class="d-inv-block">
+            <h2>INVOICE</h2>
+            <div class="d-inv-num" id="p-inv-num">#INV-2024-001</div>
+            <span class="d-status pending" id="p-status">PENDING</span>
+          </div>
+        </div>
+        <div class="d-rule"></div>
+        <div class="d-parties">
+          <div>
+            <div class="d-plbl">From (Billing Company)</div>
+            <div class="d-pname" id="p-from-name">—</div>
+            <div class="d-pdet" id="p-from-det">—</div>
+          </div>
+          <div>
+            <div class="d-plbl">Billed To (Doctor / Practice)</div>
+            <div class="d-pname" id="p-to-name">—</div>
+            <div class="d-pdet" id="p-to-det">—</div>
+          </div>
+        </div>
+        <div class="d-meta">
+          <div class="d-mi"><div class="mk">Invoice Date</div><div class="mv" id="p-idate">—</div></div>
+          <div class="d-mi"><div class="mk">Due Date</div><div class="mv" id="p-ddate">—</div></div>
+          <div class="d-mi"><div class="mk">Billing Period</div><div class="mv" id="p-period">—</div></div>
+          <div class="d-mi"><div class="mk">Payment Terms</div><div class="mv" id="p-terms">Net 30</div></div>
+          <div class="d-mi" id="p-claims-wrap"><div class="mk">Total Claims</div><div class="mv" id="p-claims">—</div></div>
+        </div>
+        <table class="d-table">
+          <thead><tr><th>Billing Service</th><th>Rate / Unit</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody id="p-tbody"><tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px 0">Add billing services to see them here</td></tr></tbody>
+        </table>
+        <div class="d-totals">
+          <div class="d-ti">
+            <div class="d-tr"><span class="tk">Subtotal</span><span class="tv" id="p-sub">$0.00</span></div>
+            <div class="d-tr" id="p-tax-row" style="display:none"><span class="tk">Tax / Surcharge</span><span class="tv" id="p-tax">$0.00</span></div>
+            <div class="d-tr" id="p-disc-row" style="display:none"><span class="tk">Discount</span><span class="tv" id="p-disc" style="color:#15803d">−$0.00</span></div>
+            <div class="d-grand"><span class="tk">Total Due</span><span class="tv" id="p-total">$0.00</span></div>
+          </div>
+        </div>
+        <div id="p-contract-box" style="display:none;margin-bottom:16px;background:#f0f6ff;border-radius:8px;padding:12px 16px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1565c0;margin-bottom:6px;">Contract Reference</div>
+          <div style="font-size:11px;color:#374151;line-height:1.7" id="p-contract-det">—</div>
+        </div>
+        <div class="d-notes" id="p-notes-box" style="display:none">
+          <div class="d-nlbl">Notes &amp; Payment Instructions</div>
+          <p id="p-notes">—</p>
+        </div>
+        <div class="d-footer">
+          <span class="d-footer-txt">Thank you for your business. We value our partnership.</span>
+          <span class="d-footer-brand" id="p-footer-brand">MedBill Pro</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let status = 'pending';
+let services = [];
+
+window.onload = () => {
+  const today = new Date().toISOString().split('T')[0];
+  const due30 = new Date(Date.now()+30*864e5).toISOString().split('T')[0];
+  document.getElementById('invDate').value = today;
+  document.getElementById('dueDate').value = due30;
+  document.getElementById('invNum').value = 'INV-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random()*900)+100);
+  addSrv(); render();
+};
+
+function swTab(name, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('tab-'+name).classList.add('on');
+  el.classList.add('on');
+}
+
+function setStatus(s) {
+  status = s;
+  ['pending','paid','overdue'].forEach(x => document.getElementById('sp-'+x).classList.toggle('on', x===s));
+  render();
+}
+
+function addSrv(desc='', rate='', amount=0) {
+  const id = Date.now() + Math.random();
+  services.push({ id, desc, rate, amount });
+  buildList();
+}
+function quickAdd(desc, rate) { addSrv(desc, rate, 0); }
+
+function delSrv(id) {
+  services = services.filter(s => s.id !== id);
+  buildList(); render();
+}
+
+function buildList() {
+  document.getElementById('srv-list').innerHTML = services.map(s => `
+    <div class="srv-row" id="sr-${s.id}">
+      <input type="text" placeholder="e.g. Monthly Claim Submission Fee" value="${esc(s.desc)}" oninput="upd(${s.id},'desc',this.value)"/>
+      <input type="text" placeholder="e.g. Per Claim / Monthly" value="${esc(s.rate)}" oninput="upd(${s.id},'rate',this.value)"/>
+      <input type="number" placeholder="0.00" min="0" step="0.01" value="${s.amount||''}" oninput="upd(${s.id},'amount',this.value)" style="text-align:right"/>
+      <button class="btn-del" onclick="delSrv(${s.id})">×</button>
+    </div>
+  `).join('');
+  render();
+}
+
+function esc(v){ return (v||'').replace(/"/g,'&quot;'); }
+
+function upd(id, field, val) {
+  const s = services.find(x => x.id===id); if (!s) return;
+  s[field] = field==='amount' ? parseFloat(val)||0 : val;
+  render();
+}
+
+function g(id){ return (document.getElementById(id)?.value||'').trim(); }
+
+function fmtD(d){
+  if(!d) return '—';
+  const [y,m,dd]=d.split('-');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]+' '+parseInt(dd)+', '+y;
+}
+function fmt(n){ return '$'+Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+
+function render() {
+  const cn = g('compName')||'Your Billing Company';
+  document.getElementById('p-comp-name').textContent = cn;
+  document.getElementById('p-footer-brand').textContent = cn;
+  document.getElementById('p-from-name').textContent = cn||'—';
+  document.getElementById('p-from-det').innerHTML = [g('compTax'),g('compNPI'),g('compAddr'),g('compPhone'),g('compEmail'),g('compWeb'),g('compContact')].filter(Boolean).join('<br/>') || '—';
+
+  const dn = g('drName')||'—';
+  const sp = g('drSpec');
+  document.getElementById('p-to-name').textContent = dn;
+  document.getElementById('p-to-det').innerHTML = [
+    sp ? '<span class="spec-pill">'+sp+'</span>' : '',
+    g('drNPI') ? 'NPI: '+g('drNPI') : '',
+    g('drAddr'), g('drPhone'), g('drEmail')
+  ].filter(Boolean).join('<br/>') || '—';
+
+  document.getElementById('p-inv-num').textContent = '#'+(g('invNum')||'INV-XXX');
+  document.getElementById('p-idate').textContent = fmtD(g('invDate'));
+  document.getElementById('p-ddate').textContent = fmtD(g('dueDate'));
+  document.getElementById('p-period').textContent = g('billPeriod')||'—';
+  document.getElementById('p-terms').textContent = g('payTerms')||'Net 30';
+  const cc = g('claimCount');
+  document.getElementById('p-claims').textContent = cc||'—';
+  document.getElementById('p-claims-wrap').style.display = cc ? '' : 'none';
+
+  const se = document.getElementById('p-status');
+  se.textContent = status.toUpperCase(); se.className = 'd-status '+status;
+
+  const tbody = document.getElementById('p-tbody');
+  if (!services.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px 0">Add billing services to see them here</td></tr>';
+  } else {
+    tbody.innerHTML = services.map((s,i) => `
+      <tr style="${i%2===1?'background:#f8fbff':''}">
+        <td>${s.desc||'<em style="color:#9ca3af">—</em>'}</td>
+        <td style="color:#6b7280;font-size:11px">${s.rate||'—'}</td>
+        <td>${fmt(s.amount||0)}</td>
+      </tr>
+    `).join('');
+  }
+
+  const sub = services.reduce((a,s)=>a+(s.amount||0),0);
+  const taxP = parseFloat(document.getElementById('taxPct')?.value)||0;
+  const discP = parseFloat(document.getElementById('discPct')?.value)||0;
+  const taxA = sub*taxP/100, discA = sub*discP/100;
+  const total = sub+taxA-discA;
+
+  document.getElementById('sub-disp').textContent = fmt(sub);
+  document.getElementById('tot-disp').textContent = fmt(total);
+  document.getElementById('p-sub').textContent = fmt(sub);
+  document.getElementById('p-total').textContent = fmt(total);
+
+  const tr=document.getElementById('p-tax-row'), dr=document.getElementById('p-disc-row');
+  if(taxP>0){tr.style.display='flex';document.getElementById('p-tax').textContent='+'+fmt(taxA);}else tr.style.display='none';
+  if(discP>0){dr.style.display='flex';document.getElementById('p-disc').textContent='−'+fmt(discA);}else dr.style.display='none';
+
+  const cNum=g('contractNum'),cDate=g('contractDate'),scope=g('scopeText'),pm=g('payerMix');
+  const cBox=document.getElementById('p-contract-box');
+  if(cNum||scope||pm){
+    cBox.style.display='block';
+    document.getElementById('p-contract-det').innerHTML=[
+      cNum?'<strong>Contract #:</strong> '+cNum:'',
+      cDate?'<strong>Agreement Date:</strong> '+fmtD(cDate):'',
+      pm?'<strong>Payer Mix:</strong> '+pm:'',
+      scope?'<strong>Scope:</strong> '+scope:''
+    ].filter(Boolean).join('<br/>');
+  } else cBox.style.display='none';
+
+  const notes=g('invNotes');
+  document.getElementById('p-notes').textContent=notes||'—';
+  document.getElementById('p-notes-box').style.display=notes?'block':'none';
+}
+
+async function dlPDF(){
+  const btn=document.querySelector('.btn-dl');
+  btn.textContent='⏳ Generating PDF…'; btn.disabled=true;
+  try {
+    const el=document.getElementById('inv-doc');
+    const canvas=await html2canvas(el,{scale:2.5,useCORS:true,backgroundColor:'#ffffff',logging:false});
+    const img=canvas.toDataURL('image/png');
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const pw=pdf.internal.pageSize.getWidth();
+    const ph=(canvas.height*pw)/canvas.width;
+    const pageH=pdf.internal.pageSize.getHeight();
+    if(ph<=pageH){ pdf.addImage(img,'PNG',0,0,pw,ph); }
+    else { let y=0; while(y<ph){ if(y>0)pdf.addPage(); pdf.addImage(img,'PNG',0,-y,pw,ph); y+=pageH; } }
+    pdf.save('Invoice-'+(g('invNum')||'MedBill')+'.pdf');
+  } catch(e){ alert('PDF error: '+e.message); }
+  btn.innerHTML='⬇ Download Invoice as PDF'; btn.disabled=false;
+}
+
+function clearAll(){
+  ['compName','compTax','compNPI','compAddr','compPhone','compEmail','compWeb','compContact',
+   'drName','drAddr','drPhone','drEmail','drNPI','invNotes','contractNum','scopeText','payerMix','claimCount','billPeriod']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('drSpec').value='';
+  document.getElementById('taxPct').value='0';
+  document.getElementById('discPct').value='0';
+  services=[]; addSrv(); setStatus('pending'); render();
+}
+
+function loadDemo(){
+  document.getElementById('compName').value='ProMed Billing Solutions LLC';
+  document.getElementById('compTax').value='EIN: 47-1234567';
+  document.getElementById('compNPI').value='NPI-9876543210';
+  document.getElementById('compAddr').value='500 Commerce Center, Suite 200, Dallas, TX 75201';
+  document.getElementById('compPhone').value='+1 (214) 555-0190';
+  document.getElementById('compEmail').value='invoices@promedbilling.com';
+  document.getElementById('compWeb').value='www.promedbilling.com';
+  document.getElementById('compContact').value='Amanda Torres, AR Manager';
+  document.getElementById('drName').value='Dr. Robert Allen, MD — Allen Cardiology Group';
+  document.getElementById('drSpec').value='Cardiology';
+  document.getElementById('drNPI').value='NPI-1122334455';
+  document.getElementById('drAddr').value='200 Heart Care Blvd, Suite 5, Houston, TX 77002';
+  document.getElementById('drPhone').value='+1 (713) 555-7700';
+  document.getElementById('drEmail').value='admin@allencardiology.com';
+  document.getElementById('invNum').value='INV-2024-0087';
+  document.getElementById('billPeriod').value='November 2024';
+  document.getElementById('contractNum').value='CTR-2024-ACG-03';
+  document.getElementById('payerMix').value='Medicare, Aetna, BCBS Texas, UnitedHealth, Cigna';
+  document.getElementById('claimCount').value='186';
+  document.getElementById('scopeText').value='Full-cycle revenue management: claim submission, coding, denial management, AR follow-up, and monthly performance reporting.';
+  document.getElementById('invNotes').value='Please remit via ACH — Routing: 021000021 | Account: 440055667. Include invoice number in memo. Questions: (214) 555-0190 or invoices@promedbilling.com.';
+  document.getElementById('taxPct').value='0';
+  document.getElementById('discPct').value='5';
+  services=[
+    {id:1,desc:'Claim Submission & Processing (186 Claims)',rate:'$4.50 / Claim',amount:837},
+    {id:2,desc:'Medical Coding (ICD-10/CPT) Review',rate:'Per Encounter',amount:558},
+    {id:3,desc:'Denial Management & Appeals (22 Denials)',rate:'$35.00 / Denial',amount:770},
+    {id:4,desc:'Payment Posting & Reconciliation',rate:'Monthly Flat',amount:350},
+    {id:5,desc:'AR Follow-up & Collections Oversight',rate:'Monthly Flat',amount:450},
+    {id:6,desc:'Eligibility Verification (186 Patients)',rate:'$2.00 / Verification',amount:372},
+    {id:7,desc:'Monthly Performance Report & Analytics',rate:'Monthly Flat',amount:150},
+  ];
+  buildList(); setStatus('pending'); render();
+}
+</script>
+</body>
+</html>
